@@ -284,6 +284,9 @@ fn cmd_swap(connection: &mut Connection, ws_l: String, ws_r: String) -> Result<(
         .find(|ws| ws.name == ws_r)
         .cloned();
 
+    let ws_l = get_workspace_special(ws_l, connection)?;
+    let ws_r = get_workspace_special(ws_r, connection)?;
+
     rename_workspace(connection, &ws_l, tmp)?;
     rename_workspace(connection, &ws_r, &ws_l)?;
     rename_workspace(connection, tmp, &ws_r)?;

@@ -1,3 +1,4 @@
+use env_logger::filter;
 use snafu::prelude::*;
 use swayipc::Connection;
 use swayipc::Workspace;
@@ -68,6 +69,62 @@ pub fn print_workspaces(connection: &mut Connection) -> Result<(), SwayWsError> 
         println!("{0:>width$} {1:>width$}", ws.num, ws.name, width = fill);
     }
     Ok(())
+}
+
+pub fn get_workspace_current(connection: &mut Connection) -> Result<Workspace, SwayWsError> {
+    let workspaces: Vec<Workspace> = connection.get_workspaces().context(SwayIpcCtx)?;
+    Ok(workspaces
+        .into_iter()
+        .find(|w| w.focused)
+        .expect("No focused workspace??"))
+}
+
+pub fn get_workspace_prev(connection: &mut Connection) -> Result<Workspace, SwayWsError> {
+    let current_out = get_workspace_current(connection)?.output;
+    let out_workspaces: Vec<Workspace> = connection
+        .get_workspaces()
+        .context(SwayIpcCtx)?
+        .into_iter()
+        .filter(|w| w.output == current_out)
+        .collect();
+    let mut out_ws_prev = out_workspaces.clone();
+    let last = out_ws_prev.pop().expect("No workspace in output??");
+    out_ws_prev.insert(0, last);
+    let mut zipped = out_workspaces.iter().zip(out_ws_prev);
+    Ok(zipped
+        .find(|(w, _)| w.focused)
+        .expect("No focused workspace??")
+        .1)
+}
+
+pub fn get_workspace_next(connection: &mut Connection) -> Result<Workspace, SwayWsError> {
+    let current_out = get_workspace_current(connection)?.output;
+    let out_workspaces: Vec<Workspace> = connection
+        .get_workspaces()
+        .context(SwayIpcCtx)?
+        .into_iter()
+        .filter(|w| w.output == current_out)
+        .collect();
+    let mut out_ws_next = out_workspaces.clone();
+    let first = out_ws_next.remove(0);
+    out_ws_next.push(first);
+    let mut zipped = out_workspaces.iter().zip(out_ws_next);
+    Ok(zipped
+        .find(|(w, _)| w.focused)
+        .expect("No focused workspace??")
+        .1)
+}
+
+pub fn get_workspace_special(
+    name: String,
+    connection: &mut Connection,
+) -> Result<String, SwayWsError> {
+    match name.as_str() {
+        "current" => Ok(get_workspace_current(connection)?.name),
+        "prev" => Ok(get_workspace_prev(connection)?.name),
+        "next" => Ok(get_workspace_next(connection)?.name),
+        _ => Ok(name),
+    }
 }
 
 pub fn get_second_output(
